@@ -9,3 +9,4 @@ venv/
 .terraform.lock.hcl
 storage-data/
 .DS_Store
+code_kitchen_arch/
