@@ -1,0 +1,145 @@
+name: code-kitchen
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: codekitchen
+      POSTGRES_PASSWORD: codekitchen
+      POSTGRES_DB: codekitchen
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codekitchen"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    command: >
+      gcloud beta emulators pubsub start
+      --host-port=0.0.0.0:8085
+      --project=codekitchen-local
+    ports:
+      - "8085:8085"
+
+  pubsub-bootstrap:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    environment: &common_env
+      PUBSUB_PROJECT_ID: codekitchen-local
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      DATABASE_URL: postgresql://codekitchen:codekitchen@postgres:5432/codekitchen
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_ROOT: /data/storage
+      USE_MOCK_AI: "true"
+      AUTH_MODE: dev
+    command: ["python", "scripts/bootstrap_pubsub.py"]
+    depends_on:
+      - pubsub
+
+  pubsub-relay:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    environment: *common_env
+    command: ["python", "scripts/pubsub_pull_relay.py"]
+    depends_on:
+      - pubsub-bootstrap
+      - process-worker
+    restart: unless-stopped
+
+  ingest-indeed:
+    build:
+      context: .
+      dockerfile: services/ingest_indeed/Dockerfile
+    environment: *common_env
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-bootstrap:
+        condition: service_completed_successfully
+    profiles: ["manual"]  # run on demand: docker compose run --rm ingest-indeed
+
+  ingest-linkedin:
+    build:
+      context: .
+      dockerfile: services/ingest_linkedin/Dockerfile
+    environment:
+      <<: *common_env
+      ENABLE_LINKEDIN_SCRAPE: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["manual"]
+
+  process-worker:
+    build:
+      context: .
+      dockerfile: services/process_worker/Dockerfile
+    environment: *common_env
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ai-api:
+    build:
+      context: .
+      dockerfile: services/ai_api/Dockerfile
+    environment: *common_env
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  referral-api:
+    build:
+      context: .
+      dockerfile: services/referral_api/Dockerfile
+    environment: *common_env
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app-api:
+    build:
+      context: .
+      dockerfile: services/app_api/Dockerfile
+    environment:
+      <<: *common_env
+      AI_API_URL: http://ai-api:8080
+      REFERRAL_API_URL: http://referral-api:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-api:
+        condition: service_started
+      referral-api:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "8090:8090"
+    depends_on:
+      - app-api
+
+volumes:
+  pgdata:
+  storage:

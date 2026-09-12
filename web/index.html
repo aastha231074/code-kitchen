@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Code Kitchen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Code Kitchen</h1>
+    <div class="user-box">
+      <label>Signed in as (dev auth)</label>
+      <input id="user-email" type="email" value="demo@example.com">
+    </div>
+  </header>
+
+  <nav>
+    <button data-tab="profile" class="tab active">Profile</button>
+    <button data-tab="matches" class="tab">Matches</button>
+    <button data-tab="applications" class="tab">Applications</button>
+    <button data-tab="outreach" class="tab">Outreach</button>
+  </nav>
+
+  <main>
+    <section id="tab-profile" class="panel active">
+      <h2>Your profile</h2>
+      <p class="hint">This feeds job matching and resume generation.</p>
+      <label>Skills (comma-separated)</label>
+      <input id="profile-skills" type="text" placeholder="Python, React, GCP">
+      <label>Experience</label>
+      <textarea id="profile-experience" rows="3" placeholder="5 years building backend services..."></textarea>
+      <label>Preferences</label>
+      <input id="profile-preferences" type="text" placeholder="Remote, mid-size company">
+      <label>Location</label>
+      <input id="profile-location" type="text" placeholder="Remote">
+      <button id="save-profile">Save profile</button>
+      <span id="profile-status" class="status"></span>
+    </section>
+
+    <section id="tab-matches" class="panel">
+      <h2>Job matches</h2>
+      <p class="hint">Runs a vector pre-filter, then Gemini Flash explains the fit for the shortlist.</p>
+      <button id="run-match">Find matches</button>
+      <span id="match-status" class="status"></span>
+      <div id="matches-list" class="card-list"></div>
+    </section>
+
+    <section id="tab-applications" class="panel">
+      <h2>Applications</h2>
+      <button id="refresh-applications">Refresh</button>
+      <div id="applications-list" class="card-list"></div>
+    </section>
+
+    <section id="tab-outreach" class="panel">
+      <h2>Outreach</h2>
+      <p class="hint">Nothing here is sent until you click Approve &amp; send.</p>
+      <button id="refresh-outreach">Refresh</button>
+      <div id="outreach-list" class="card-list"></div>
+    </section>
+  </main>
+
+  <div id="generate-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3 id="generate-title"></h3>
+      <label>Tailored resume</label>
+      <textarea id="generate-resume" rows="8"></textarea>
+      <label>Referral outreach draft</label>
+      <textarea id="generate-outreach" rows="4"></textarea>
+      <div class="modal-actions">
+        <button id="generate-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
